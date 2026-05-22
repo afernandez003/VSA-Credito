@@ -1,0 +1,7 @@
+**/.vs
+**/.git
+**/bin
+**/obj
+**/TestResults
+docker-compose.yml
+Teste-Requisitos.md

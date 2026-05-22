@@ -1,0 +1,414 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Creditos API — Desafio Técnico",
+    "description": "API REST para integração e consulta de créditos constituídos (ISSQN/NFS-e).",
+    "version": "v1"
+  },
+  "paths": {
+    "/self": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "summary": "Liveness — verifica se o processo está ativo",
+        "operationId": "Self",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Api"
+        ],
+        "summary": "Readiness — verifica se o banco de dados está acessível",
+        "operationId": "Ready",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/creditos/integrar-credito-constituido": {
+      "post": {
+        "tags": [
+          "Creditos"
+        ],
+        "summary": "Integra uma lista de créditos constituídos publicando no tópico Kafka",
+        "operationId": "IntegrarCredito",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreditoRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/creditos/{numeroNfse}": {
+      "get": {
+        "tags": [
+          "Creditos"
+        ],
+        "summary": "Retorna créditos constituídos pelo número da NFS-e",
+        "operationId": "GetCreditosByNfse",
+        "parameters": [
+          {
+            "name": "numeroNfse",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Response"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/creditos/credito/{numeroCredito}": {
+      "get": {
+        "tags": [
+          "Creditos"
+        ],
+        "summary": "Retorna os detalhes de um crédito constituído pelo seu número",
+        "operationId": "GetCreditoByNumero",
+        "parameters": [
+          {
+            "name": "numeroCredito",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Response"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnonymousTypeOfstring": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CreditoRequest": {
+        "required": [
+          "numeroCredito",
+          "numeroNfse",
+          "dataConstituicao",
+          "valorIssqn",
+          "tipoCredito",
+          "simplesNacional",
+          "aliquota",
+          "valorFaturado",
+          "valorDeducao",
+          "baseCalculo"
+        ],
+        "type": "object",
+        "properties": {
+          "numeroCredito": {
+            "type": "string"
+          },
+          "numeroNfse": {
+            "type": "string"
+          },
+          "dataConstituicao": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorIssqn": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tipoCredito": {
+            "type": "string"
+          },
+          "simplesNacional": {
+            "type": "string"
+          },
+          "aliquota": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "valorFaturado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "valorDeducao": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "baseCalculo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "Response": {
+        "required": [
+          "numeroCredito",
+          "numeroNfse",
+          "dataConstituicao",
+          "valorIssqn",
+          "tipoCredito",
+          "simplesNacional",
+          "aliquota",
+          "valorFaturado",
+          "valorDeducao",
+          "baseCalculo"
+        ],
+        "type": "object",
+        "properties": {
+          "numeroCredito": {
+            "type": "string"
+          },
+          "numeroNfse": {
+            "type": "string"
+          },
+          "dataConstituicao": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorIssqn": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "tipoCredito": {
+            "type": "string"
+          },
+          "simplesNacional": {
+            "type": "string"
+          },
+          "aliquota": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "valorFaturado": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "valorDeducao": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "baseCalculo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Api"
+    },
+    {
+      "name": "Creditos"
+    }
+  ]
+}
