@@ -160,6 +160,147 @@ Mantém as dependências atualizadas passivamente, sem esforço manual. PRs de D
 
 ---
 
+## Testes — Onde estão e como consultar
+
+### Localização dos arquivos
+
+```
+tests/
+├── TestResults/                        ← gerado pelo CI; gitignored
+│   ├── test-results.trx                # resultado por teste (xUnit + ITestOutputHelper)
+│   ├── test-results.md                 # relatório Markdown (LiquidTestReports)
+│   └── coverage/
+│       ├── index.html                  # cobertura por linha, navegável no browser
+│       └── SummaryGithub.md            # resumo publicado no Job Summary e PR
+│
+└── Tests/
+    ├── coverlet.runsettings            # configuração de cobertura e gate 60%
+    ├── GlobalUsings.cs                 # usings globais de todos os testes
+    ├── Fakers/
+    │   └── CreditoFakers.cs            # dados gerados com Bogus (seeds fixos)
+    ├── Unit/
+    │   ├── Domain.CreditoTests.cs      # aggregate root: factory, invariantes, errors
+    │   ├── IntegrarCredito.HandlerTests.cs   # publica N mensagens no bus
+    │   ├── ProcessarCredito.HandlerTests.cs  # guard de duplicidade + insert
+    │   ├── GetCreditosByNfse.HandlerTests.cs # filtro por NFS-e + auditoria
+    │   └── GetCreditoByNumero.HandlerTests.cs # 200/404 + auditoria
+    └── Integration/
+        ├── ApiFactory.cs               # WebApplicationFactory + Testcontainers
+        └── CreditosEndpointTests.cs    # testes HTTP end-to-end
+```
+
+### Tipos de teste
+
+| Tipo | Quantidade | Ferramentas | Infraestrutura |
+|---|---|---|---|
+| **Unitário** | 27 | xUnit · NSubstitute · FluentAssertions · Bogus | Nenhuma (mocks) |
+| **Integração** | 10 | xUnit · Testcontainers · FluentAssertions · Bogus | Kafka + PostgreSQL reais em Docker |
+
+### Dados de teste
+
+Todos os testes usam **[Bogus](https://github.com/bchavez/Bogus)** com seeds fixos para gerar dados realistas e reproduzíveis. Cada teste recebe um seed diferente — se um teste falhar, rodar novamente com o mesmo seed produz exatamente os mesmos dados.
+
+Os testes de integração que cobrem o fluxo completo (POST → Kafka → Worker → banco → GET) usam **[Testcontainers](https://testcontainers.com/guides/getting-started-with-testcontainers-for-dotnet/)** para subir Kafka e PostgreSQL reais em Docker durante a execução — sem mocks de infraestrutura.
+
+### Como rodar localmente
+
+```bash
+# Todos os testes
+dotnet test
+
+# Apenas unitários
+dotnet test --filter "FullyQualifiedName~Unit"
+
+# Apenas integração (requer Docker rodando)
+dotnet test --filter "FullyQualifiedName~Integration"
+
+# Com cobertura
+dotnet test --collect:"XPlat Code Coverage" --settings tests/Tests/coverlet.runsettings
+```
+
+### Como consultar os resultados no GitHub Actions
+
+#### Passo 1 — Abrir o run
+
+```
+github.com/afernandez003/VSA-Credito
+  → aba Actions
+    → workflow "CI" (coluna esquerda)
+      → clica no run mais recente
+```
+
+O run mostra dois jobs em paralelo: **Build & Test** e **Analyze (C#)** (CodeQL).
+
+---
+
+#### Passo 2 — Resultados dos testes (passou/falhou)
+
+```
+Run → job "Build & Test" → step "Test + Coverage"
+```
+
+O log mostra cada teste com o resultado:
+```
+Aprovado  Handle: crédito encontrado → Result.Success [274 ms]
+Aprovado  POST /integrar-credito-constituido + Worker → GET retorna [1 s]
+```
+
+Para ver o output interno de um teste (dados Bogus, request/response JSON, timing):
+- Expanda o step e role até o teste desejado
+- As linhas `── INPUT ──`, `── REQUEST ──`, `── RESPONSE ──` são do `ITestOutputHelper`
+
+---
+
+#### Passo 3 — Resumo de cobertura
+
+```
+Run → aba "Summary" (topo da página do run, rola até o fim)
+```
+
+Aparece a tabela gerada pelo ReportGenerator com cobertura por assembly:
+
+| Assembly | Line | Branch | Method |
+|---|---|---|---|
+| Creditos.App | 85% | 78% | 91% |
+| Creditos.Infra | 72% | 65% | 80% |
+
+---
+
+#### Passo 4 — Artefatos para download
+
+```
+Run → seção "Artifacts" (fim da página do run)
+  → test-results-N  ← clica para baixar o zip
+```
+
+Após extrair o zip:
+
+| Arquivo | Como usar |
+|---|---|
+| `test-results.trx` | Visual Studio → Test Explorer → Open TRX |
+| `test-results.md` | Qualquer editor ou preview no GitHub |
+| `coverage/index.html` | Abrir no browser — cobertura por linha, método e branch |
+
+---
+
+#### Passo 5 — Cobertura no PR (pull requests)
+
+Quando o CI roda em um pull request, o bot posta automaticamente um comentário com a tabela de cobertura. Não precisa entrar em Actions — o resumo aparece direto na página do PR.
+
+---
+
+#### Passo 6 — Alertas de segurança (CodeQL)
+
+```
+github.com/afernandez003/VSA-Credito
+  → aba Security
+    → Code scanning alerts
+```
+
+Se o CodeQL não encontrar nada, a lista fica vazia — esse é o resultado esperado. Alertas são priorizados por severidade e mostram o fluxo de dados completo que originou o problema.
+
+---
+
 ## Resumo
 
 | Ferramenta | Falha o CI? | Quando vejo o resultado |
