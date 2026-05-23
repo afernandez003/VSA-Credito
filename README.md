@@ -1,5 +1,9 @@
 # Creditos API — Desafio Técnico
 
+[![CI](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml)
+
+[![CodeQL](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml)
+
 API REST + Background Service para integração e consulta de créditos constituídos (ISSQN/NFS-e).
 
 > **Notas de implementação**
@@ -43,7 +47,8 @@ API REST + Background Service para integração e consulta de créditos constitu
 - [x] CodeQL — análise SAST em cada push/PR e semanal
 - [x] Dependabot — PRs automáticos para NuGet e GitHub Actions
 
-> Detalhes, cobertura e vantagens de cada ferramenta: [docs/quality-gates.md](docs/quality-gates.md)
+> Detalhes, cobertura e vantagens de cada ferramenta: [docs/quality-gates.md](docs/quality-gates.md)  
+> Como os 3 workflows funcionam e por que aparecem 34 execuções: [docs/workflows.md](docs/workflows.md)
 
 ---
 
