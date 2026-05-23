@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Creditos.Infra.Data;
-using Creditos.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
@@ -61,20 +60,36 @@ public class CreditosEndpointTests : IClassFixture<ApiFactory>
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
     }
 
-    [Fact(DisplayName = "POST /integrar-credito-constituido: payload com 3 créditos → publisher recebe exatamente 3 mensagens no bus")]
-    public async Task POST_IntegrarCredito_DevePublicarMensagensNoPublisher()
+    [Fact(DisplayName = "POST /integrar-credito-constituido + Worker: créditos publicados no Kafka → worker persiste → GET os retorna")]
+    public async Task POST_IntegrarCredito_WorkerConsome_GET_RetornaCreditos()
     {
-        _factory.Publisher.ClearReceivedCalls();
-        var payload = CreditoFakers.GerarRequests(3, seed: 20);
+        var nfse = "NF-FULLSTACK-01";
+        var payload = new[]
+        {
+            CreditoFakers.GerarRequest(seed: 50) with { NumeroNfse = nfse, NumeroCredito = "CR-FULLSTACK-01" },
+            CreditoFakers.GerarRequest(seed: 51) with { NumeroNfse = nfse, NumeroCredito = "CR-FULLSTACK-02" }
+        };
         var url = "/api/creditos/integrar-credito-constituido";
 
-        var response = await _client.PostAsJsonAsync(url, payload);
+        _output.WriteLine("── POST: publicando 2 créditos no Kafka ─");
+        var postResponse = await _client.PostAsJsonAsync(url, payload);
+        await LogRequestResponse("POST", url, payload, postResponse);
+        postResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
-        await LogRequestResponse("POST", url, payload, response);
-        await _factory.Publisher.Received(3).PublishAsync(
-            Arg.Any<CreditoMessage>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>());
+        _output.WriteLine("── WORKER: drenando fila do Kafka ────────");
+        await _factory.ProcessarMensagensPendentesAsync(timeoutMs: 15000);
+        _output.WriteLine("── WORKER: fila drenada ✅ ───────────────");
+
+        var getUrl = $"/api/creditos/{nfse}";
+        var getResponse = await _client.GetAsync(getUrl);
+        var creditos = await getResponse.Content.ReadFromJsonAsync<List<Credito.GetCreditosByNfse.Response>>();
+
+        await LogRequestResponse("GET", getUrl, null, getResponse);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        creditos.Should().NotBeNull();
+        creditos!.Select(c => c.NumeroCredito).Should()
+            .Contain(["CR-FULLSTACK-01", "CR-FULLSTACK-02"]);
+        _output.WriteLine($"✅ Créditos persistidos: {creditos.Count}");
     }
 
     [Fact(DisplayName = "GET /api/creditos/{numeroNfse}: NFS-e sem créditos → 200 OK com lista vazia")]
@@ -102,10 +117,10 @@ public class CreditosEndpointTests : IClassFixture<ApiFactory>
         await db.SaveChangesAsync();
 
         _output.WriteLine($"── DADO PRÉ-INSERIDO ─────────────────────");
-        _output.WriteLine($"NumeroCredito : {credito.NumeroCredito}");
-        _output.WriteLine($"NumeroNfse    : {credito.NumeroNfse}");
-        _output.WriteLine($"ValorIssqn    : {credito.ValorIssqn}");
-        _output.WriteLine($"TipoCredito   : {credito.TipoCredito}");
+        _output.WriteLine($"NumeroCredito  : {credito.NumeroCredito}");
+        _output.WriteLine($"NumeroNfse     : {credito.NumeroNfse}");
+        _output.WriteLine($"ValorIssqn     : {credito.ValorIssqn}");
+        _output.WriteLine($"TipoCredito    : {credito.TipoCredito}");
         _output.WriteLine($"SimplesNacional: {credito.SimplesNacional}");
 
         var url = $"/api/creditos/{credito.NumeroNfse}";
@@ -132,10 +147,10 @@ public class CreditosEndpointTests : IClassFixture<ApiFactory>
         await db.SaveChangesAsync();
 
         _output.WriteLine($"── DADO PRÉ-INSERIDO ─────────────────────");
-        _output.WriteLine($"NumeroCredito : {credito.NumeroCredito}");
-        _output.WriteLine($"NumeroNfse    : {credito.NumeroNfse}");
-        _output.WriteLine($"ValorIssqn    : {credito.ValorIssqn}");
-        _output.WriteLine($"TipoCredito   : {credito.TipoCredito}");
+        _output.WriteLine($"NumeroCredito  : {credito.NumeroCredito}");
+        _output.WriteLine($"NumeroNfse     : {credito.NumeroNfse}");
+        _output.WriteLine($"ValorIssqn     : {credito.ValorIssqn}");
+        _output.WriteLine($"TipoCredito    : {credito.TipoCredito}");
         _output.WriteLine($"SimplesNacional: {credito.SimplesNacional}");
 
         var url = $"/api/creditos/credito/{credito.NumeroCredito}";
