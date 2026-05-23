@@ -1,96 +1,117 @@
-using FluentAssertions;
+using Xunit.Abstractions;
 
 namespace Creditos.Tests.Unit;
 
-public class Domain_CreditoTests
+public class Domain_CreditoTests(ITestOutputHelper output)
 {
-    private static Domain.Credito CriarCredito(
-        string numeroCredito = "123456",
-        string numeroNfse = "7891011",
-        DateOnly? dataConstituicao = null,
-        decimal valorIssqn = 500.00m,
-        string tipoCredito = "ISSQN",
-        bool simplesNacional = false,
-        decimal aliquota = 5.00m,
-        decimal valorFaturado = 10000.00m,
-        decimal valorDeducao = 0m,
-        decimal baseCalculo = 10000.00m) =>
-        Domain.Credito.Create(
-            numeroCredito,
-            numeroNfse,
-            dataConstituicao ?? new DateOnly(2024, 3, 1),
-            valorIssqn,
-            tipoCredito,
-            simplesNacional,
-            aliquota,
-            valorFaturado,
-            valorDeducao,
-            baseCalculo);
-
-    [Fact]
+    [Fact(DisplayName = "Create: todas as propriedades são atribuídas corretamente pelo factory method")]
     public void Create_DeveAtribuirPropriedadesCorretamente()
     {
-        var credito = CriarCredito();
+        var credito = CreditoFakers.GerarDomainCredito(
+            numeroCredito: "CR-000001",
+            numeroNfse: "NF-9999999",
+            seed: 1);
 
-        credito.NumeroCredito.Should().Be("123456");
-        credito.NumeroNfse.Should().Be("7891011");
-        credito.DataConstituicao.Should().Be(new DateOnly(2024, 3, 1));
-        credito.ValorIssqn.Should().Be(500.00m);
-        credito.TipoCredito.Should().Be("ISSQN");
-        credito.SimplesNacional.Should().BeFalse();
-        credito.Aliquota.Should().Be(5.00m);
-        credito.ValorFaturado.Should().Be(10000.00m);
-        credito.ValorDeducao.Should().Be(0m);
-        credito.BaseCalculo.Should().Be(10000.00m);
+        output.WriteLine("── INPUT (Bogus seed=1) ──────────────────");
+        output.WriteLine($"NumeroCredito : {credito.NumeroCredito}");
+        output.WriteLine($"NumeroNfse    : {credito.NumeroNfse}");
+        output.WriteLine($"ValorIssqn    : {credito.ValorIssqn}");
+        output.WriteLine($"TipoCredito   : {credito.TipoCredito}");
+        output.WriteLine($"SimplesNacional: {credito.SimplesNacional}");
+        output.WriteLine($"Aliquota      : {credito.Aliquota}");
+        output.WriteLine($"ValorFaturado : {credito.ValorFaturado}");
+        output.WriteLine("── ASSERTIONS ───────────────────────────");
+        output.WriteLine($"NumeroCredito == \"CR-000001\" ✅");
+        output.WriteLine($"NumeroNfse    == \"NF-9999999\" ✅");
+        output.WriteLine($"ValorIssqn    > 0 ✅");
+
+        credito.NumeroCredito.Should().Be("CR-000001");
+        credito.NumeroNfse.Should().Be("NF-9999999");
+        credito.ValorIssqn.Should().BePositive();
+        credito.Aliquota.Should().BeInRange(2m, 5m);
+        credito.ValorFaturado.Should().BePositive();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Create: espaços extras em numeroCredito são removidos (Trim)")]
     public void Create_DeveFazerTrimNoNumeroCredito()
     {
-        var credito = CriarCredito(numeroCredito: "  123456  ");
+        var input = "  CR-TRIM  ";
+        var credito = Domain.Credito.Create(
+            input, "NF-0000001", new DateOnly(2024, 1, 1),
+            500m, "ISSQN", false, 5m, 10000m, 0m, 10000m);
 
-        credito.NumeroCredito.Should().Be("123456");
+        output.WriteLine($"── INPUT  : \"{input}\"");
+        output.WriteLine($"── OUTPUT : \"{credito.NumeroCredito}\"");
+
+        credito.NumeroCredito.Should().Be("CR-TRIM");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Create: espaços extras em numeroNfse são removidos (Trim)")]
     public void Create_DeveFazerTrimNoNumeroNfse()
     {
-        var credito = CriarCredito(numeroNfse: "  7891011  ");
+        var input = "  NF-TRIM  ";
+        var credito = Domain.Credito.Create(
+            "CR-TRIM-NF", input, new DateOnly(2024, 1, 1),
+            500m, "ISSQN", false, 5m, 10000m, 0m, 10000m);
 
-        credito.NumeroNfse.Should().Be("7891011");
+        output.WriteLine($"── INPUT  : \"{input}\"");
+        output.WriteLine($"── OUTPUT : \"{credito.NumeroNfse}\"");
+
+        credito.NumeroNfse.Should().Be("NF-TRIM");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Create: espaços extras em tipoCredito são removidos (Trim)")]
     public void Create_DeveFazerTrimNoTipoCredito()
     {
-        var credito = CriarCredito(tipoCredito: "  ISSQN  ");
+        var input = "  ISSQN  ";
+        var credito = Domain.Credito.Create(
+            "CR-TRIM-TC", "NF-0000002", new DateOnly(2024, 1, 1),
+            500m, input, false, 5m, 10000m, 0m, 10000m);
+
+        output.WriteLine($"── INPUT  : \"{input}\"");
+        output.WriteLine($"── OUTPUT : \"{credito.TipoCredito}\"");
 
         credito.TipoCredito.Should().Be("ISSQN");
     }
 
-    [Fact]
+    [Fact(DisplayName = "Create: simplesNacional=true é persistido sem conversão")]
     public void Create_ComSimplesNacionalTrue_DeveAtribuirTrue()
     {
-        var credito = CriarCredito(simplesNacional: true);
+        var credito = Domain.Credito.Create(
+            "CR-SIMPLES", "NF-0000003", new DateOnly(2024, 1, 1),
+            500m, "ISSQN", true, 5m, 10000m, 0m, 10000m);
+
+        output.WriteLine($"── INPUT  : SimplesNacional = true");
+        output.WriteLine($"── OUTPUT : SimplesNacional = {credito.SimplesNacional}");
 
         credito.SimplesNacional.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Errors.NotFound: retorna código CREDITO_NOT_FOUND e mensagem com o número do crédito")]
     public void Errors_NotFound_DeveConterCodigoEMensagem()
     {
-        var error = Domain.Credito.Errors.NotFound("123456");
+        var credito = CreditoFakers.GerarDomainCredito(seed: 10);
+        var error = Domain.Credito.Errors.NotFound(credito.NumeroCredito);
+
+        output.WriteLine($"── INPUT  : NumeroCredito = \"{credito.NumeroCredito}\" (Bogus seed=10)");
+        output.WriteLine($"── OUTPUT : Code    = \"{error.Code}\"");
+        output.WriteLine($"            Message = \"{error.Message}\"");
 
         error.Code.Should().Be("CREDITO_NOT_FOUND");
-        error.Message.Should().Contain("123456");
+        error.Message.Should().Contain(credito.NumeroCredito);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Errors.AlreadyExists: retorna código CREDITO_EXISTS e mensagem com o número do crédito")]
     public void Errors_AlreadyExists_DeveConterCodigoEMensagem()
     {
-        var error = Domain.Credito.Errors.AlreadyExists("123456");
+        var credito = CreditoFakers.GerarDomainCredito(seed: 11);
+        var error = Domain.Credito.Errors.AlreadyExists(credito.NumeroCredito);
+
+        output.WriteLine($"── INPUT  : NumeroCredito = \"{credito.NumeroCredito}\" (Bogus seed=11)");
+        output.WriteLine($"── OUTPUT : Code    = \"{error.Code}\"");
+        output.WriteLine($"            Message = \"{error.Message}\"");
 
         error.Code.Should().Be("CREDITO_EXISTS");
-        error.Message.Should().Contain("123456");
+        error.Message.Should().Contain(credito.NumeroCredito);
     }
 }

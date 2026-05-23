@@ -1,78 +1,100 @@
 using Creditos.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Xunit.Abstractions;
 using static Creditos.Credito.GetCreditosByNfse;
 
 namespace Creditos.Tests.Unit;
 
-public class GetCreditosByNfse_HandlerTests
+public class GetCreditosByNfse_HandlerTests(ITestOutputHelper output)
 {
     private readonly ICreditoRepository _repository = Substitute.For<ICreditoRepository>();
     private readonly IMessagePublisher _publisher = Substitute.For<IMessagePublisher>();
 
     private Handler CriarHandler() => new(_repository, _publisher, NullLogger<Handler>.Instance);
 
-    private static Domain.Credito CriarCredito(string numeroCredito = "123456", string numeroNfse = "7891011") =>
-        Domain.Credito.Create(
-            numeroCredito,
-            numeroNfse,
-            new DateOnly(2024, 3, 1),
-            500.00m,
-            "ISSQN",
-            false,
-            5.00m,
-            10000.00m,
-            0m,
-            10000.00m);
-
-    [Fact]
+    [Fact(DisplayName = "Handle: NFS-e com 2 créditos no banco → retorna lista com 2 itens")]
     public async Task Handle_ComCreditosExistentes_DeveRetornarLista()
     {
-        var creditos = new List<Domain.Credito> { CriarCredito("111"), CriarCredito("222") };
-        _repository.GetByNumeroNfseAsync("7891011", Arg.Any<CancellationToken>())
-            .Returns(creditos);
+        var nfse = "NF-8881234";
+        var creditos = new List<Domain.Credito>
+        {
+            CreditoFakers.GerarDomainCredito(numeroNfse: nfse, seed: 1),
+            CreditoFakers.GerarDomainCredito(numeroNfse: nfse, seed: 2),
+        };
+        _repository.GetByNumeroNfseAsync(nfse, Arg.Any<CancellationToken>()).Returns(creditos);
 
-        var result = await CriarHandler().Handle(new Query("7891011"), CancellationToken.None);
+        output.WriteLine($"── INPUT: NumeroNfse = \"{nfse}\"");
+        output.WriteLine("── SETUP: banco retorna 2 créditos");
+        foreach (var c in creditos)
+            output.WriteLine($"  {c.NumeroCredito} | {c.TipoCredito} | {c.ValorIssqn:N2}");
+
+        var result = await CriarHandler().Handle(new Query(nfse), CancellationToken.None);
+
+        output.WriteLine("── RESULTADO ────────────────────────────");
+        output.WriteLine($"IsSuccess : {result.IsSuccess}");
+        output.WriteLine($"Count     : {result.Value.Count} ✅");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(2);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: NFS-e sem créditos no banco → retorna lista vazia (não é erro)")]
     public async Task Handle_SemCreditosExistentes_DeveRetornarListaVazia()
     {
-        _repository.GetByNumeroNfseAsync("7891011", Arg.Any<CancellationToken>())
+        var nfse = "NF-0000000";
+        _repository.GetByNumeroNfseAsync(nfse, Arg.Any<CancellationToken>())
             .Returns(new List<Domain.Credito>());
 
-        var result = await CriarHandler().Handle(new Query("7891011"), CancellationToken.None);
+        output.WriteLine($"── INPUT: NumeroNfse = \"{nfse}\"");
+        output.WriteLine("── SETUP: banco retorna lista vazia");
+
+        var result = await CriarHandler().Handle(new Query(nfse), CancellationToken.None);
+
+        output.WriteLine($"── RESULTADO: IsSuccess={result.IsSuccess}, Count={result.Value.Count} ✅");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: toda consulta por NFS-e publica ConsultaRealizadaMessage com Tipo='PorNfse' no tópico de auditoria")]
     public async Task Handle_DevePublicarEventoAuditoria()
     {
-        _repository.GetByNumeroNfseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        var nfse = "NF-AUDITORIA";
+        _repository.GetByNumeroNfseAsync(nfse, Arg.Any<CancellationToken>())
             .Returns(new List<Domain.Credito>());
 
-        await CriarHandler().Handle(new Query("7891011"), CancellationToken.None);
+        output.WriteLine($"── INPUT: NumeroNfse = \"{nfse}\"");
+
+        await CriarHandler().Handle(new Query(nfse), CancellationToken.None);
+
+        output.WriteLine("── RESULTADO ────────────────────────────");
+        output.WriteLine($"PublishAuditoriaAsync: chamado 1x");
+        output.WriteLine($"  Tipo      = \"PorNfse\"");
+        output.WriteLine($"  Parametro = \"{nfse}\" ✅");
 
         await _publisher.Received(1).PublishAuditoriaAsync(
-            Arg.Is<ConsultaRealizadaMessage>(m => m.Tipo == "PorNfse" && m.Parametro == "7891011"),
+            Arg.Is<ConsultaRealizadaMessage>(m => m.Tipo == "PorNfse" && m.Parametro == nfse),
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: simplesNacional=true no banco → serializado como 'Sim' no response JSON")]
     public async Task Handle_DeveMapearSimplesNacionalParaString()
     {
+        var nfse = "NF-SIMPLES";
         var creditos = new List<Domain.Credito>
         {
-            Domain.Credito.Create("111", "7891011", new DateOnly(2024, 3, 1), 500m, "ISSQN", true, 5m, 10000m, 0m, 10000m)
+            Domain.Credito.Create("CR-SIMPLES-01", nfse, new DateOnly(2024, 3, 1),
+                500m, "ISSQN", true, 5m, 10000m, 0m, 10000m)
         };
-        _repository.GetByNumeroNfseAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(creditos);
+        _repository.GetByNumeroNfseAsync(nfse, Arg.Any<CancellationToken>()).Returns(creditos);
 
-        var result = await CriarHandler().Handle(new Query("7891011"), CancellationToken.None);
+        output.WriteLine($"── INPUT: NumeroNfse = \"{nfse}\"");
+        output.WriteLine($"── SETUP: Domain.Credito.SimplesNacional = true (bool)");
 
-        result.Value.First().SimplesNacional.Should().Be("Sim");
+        var result = await CriarHandler().Handle(new Query(nfse), CancellationToken.None);
+
+        output.WriteLine($"── RESULTADO: Response.SimplesNacional = \"{result.Value[0].SimplesNacional}\" ✅");
+
+        result.Value[0].SimplesNacional.Should().Be("Sim");
     }
 }

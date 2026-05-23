@@ -1,42 +1,42 @@
 using Creditos.Messaging;
 using Creditos.Options;
 using Microsoft.Extensions.Logging.Abstractions;
+using Xunit.Abstractions;
 using ExtOptions = Microsoft.Extensions.Options.Options;
 using static Creditos.Credito.IntegrarCredito;
 
 namespace Creditos.Tests.Unit;
 
-public class IntegrarCredito_HandlerTests
+public class IntegrarCredito_HandlerTests(ITestOutputHelper output)
 {
     private readonly IMessagePublisher _publisher = Substitute.For<IMessagePublisher>();
 
     private readonly IOptions<MessagingOptions> _options = ExtOptions.Create(new MessagingOptions
     {
         TopicoIntegracao = "integrar-credito-constituido-entry",
-        TopicoAuditoria = "consulta-credito-entry"
+        TopicoAuditoria  = "consulta-credito-entry"
     });
 
     private Handler CriarHandler() => new(_publisher, _options, NullLogger<Handler>.Instance);
 
-    private static CreditoRequest CriarRequest(string numero = "123456") => new(
-        NumeroCredito: numero,
-        NumeroNfse: "7891011",
-        DataConstituicao: new DateOnly(2024, 3, 1),
-        ValorIssqn: 500.00m,
-        TipoCredito: "ISSQN",
-        SimplesNacional: "Não",
-        Aliquota: 5.00m,
-        ValorFaturado: 10000.00m,
-        ValorDeducao: 0m,
-        BaseCalculo: 10000.00m);
-
-    [Fact]
+    [Fact(DisplayName = "Handle: payload com 1 crédito → PublishAsync chamado exatamente 1 vez no tópico de integração")]
     public async Task Handle_ComUmCredito_DevePublicarUmaMensagem()
     {
-        var command = new Command([CriarRequest()]);
-        var handler = CriarHandler();
+        var request = CreditoFakers.GerarRequest(seed: 1);
+        var command = new Command([request]);
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        output.WriteLine("── INPUT (Bogus seed=1) ──────────────────");
+        output.WriteLine($"NumeroCredito : {request.NumeroCredito}");
+        output.WriteLine($"NumeroNfse    : {request.NumeroNfse}");
+        output.WriteLine($"TipoCredito   : {request.TipoCredito}");
+        output.WriteLine($"SimplesNacional: {request.SimplesNacional}");
+        output.WriteLine($"ValorIssqn    : {request.ValorIssqn}");
+
+        var result = await CriarHandler().Handle(command, CancellationToken.None);
+
+        output.WriteLine("── RESULTADO ────────────────────────────");
+        output.WriteLine($"IsSuccess   : {result.IsSuccess}");
+        output.WriteLine($"PublishAsync: chamado 1x no tópico \"integrar-credito-constituido-entry\"");
 
         result.IsSuccess.Should().BeTrue();
         await _publisher.Received(1).PublishAsync(
@@ -45,13 +45,20 @@ public class IntegrarCredito_HandlerTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: payload com 3 créditos → PublishAsync chamado exatamente 3 vezes (1 por crédito)")]
     public async Task Handle_ComTresCreditos_DevePublicarTresMensagens()
     {
-        var command = new Command([CriarRequest("111"), CriarRequest("222"), CriarRequest("333")]);
-        var handler = CriarHandler();
+        var requests = CreditoFakers.GerarRequests(3, seed: 2);
+        var command = new Command(requests);
 
-        await handler.Handle(command, CancellationToken.None);
+        output.WriteLine("── INPUT (Bogus seed=2, 3 créditos) ──────");
+        foreach (var r in requests)
+            output.WriteLine($"  {r.NumeroCredito} | {r.TipoCredito} | {r.ValorIssqn:N2} | {r.SimplesNacional}");
+
+        await CriarHandler().Handle(command, CancellationToken.None);
+
+        output.WriteLine("── RESULTADO ────────────────────────────");
+        output.WriteLine($"PublishAsync: chamado 3x no tópico \"integrar-credito-constituido-entry\"");
 
         await _publisher.Received(3).PublishAsync(
             Arg.Any<CreditoMessage>(),
@@ -59,32 +66,40 @@ public class IntegrarCredito_HandlerTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: sempre retorna Result.Success com success=true independente do conteúdo")]
     public async Task Handle_DeveRetornarSuccessTrue()
     {
-        var command = new Command([CriarRequest()]);
-        var handler = CriarHandler();
+        var request = CreditoFakers.GerarRequest(seed: 3);
+        var command = new Command([request]);
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        output.WriteLine($"── INPUT (Bogus seed=3): {request.NumeroCredito}");
+
+        var result = await CriarHandler().Handle(command, CancellationToken.None);
+
+        output.WriteLine($"── RESULTADO: IsSuccess={result.IsSuccess}, Success={result.Value.Success}");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Success.Should().BeTrue();
     }
 
-    [Theory]
-    [InlineData("Sim", true)]
-    [InlineData("sim", true)]
-    [InlineData("SIM", true)]
-    [InlineData("Não", false)]
-    [InlineData("não", false)]
-    [InlineData("NAO", false)]
+    [Theory(DisplayName = "Handle: simplesNacional aceita variações de case e acento → converte para bool na mensagem")]
+    [InlineData("Sim",  true)]
+    [InlineData("sim",  true)]
+    [InlineData("SIM",  true)]
+    [InlineData("Não",  false)]
+    [InlineData("não",  false)]
+    [InlineData("NAO",  false)]
     public async Task Handle_ParseSimplesNacional_DeveConverterCorretamente(string input, bool esperado)
     {
-        var request = CriarRequest() with { SimplesNacional = input };
+        var request = CreditoFakers.GerarRequest(seed: 4) with { SimplesNacional = input };
         var command = new Command([request]);
-        var handler = CriarHandler();
 
-        await handler.Handle(command, CancellationToken.None);
+        output.WriteLine($"── INPUT  : SimplesNacional = \"{input}\"");
+        output.WriteLine($"── ESPERADO: bool = {esperado}");
+
+        await CriarHandler().Handle(command, CancellationToken.None);
+
+        output.WriteLine($"── RESULTADO: PublishAsync recebeu CreditoMessage.SimplesNacional = {esperado} ✅");
 
         await _publisher.Received(1).PublishAsync(
             Arg.Is<CreditoMessage>(m => m.SimplesNacional == esperado),
@@ -92,13 +107,16 @@ public class IntegrarCredito_HandlerTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
+    [Fact(DisplayName = "Handle: payload vazio → PublishAsync nunca é chamado")]
     public async Task Handle_ListaVazia_NaoDevePublicarNada()
     {
         var command = new Command([]);
-        var handler = CriarHandler();
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        output.WriteLine("── INPUT  : lista vazia []");
+
+        var result = await CriarHandler().Handle(command, CancellationToken.None);
+
+        output.WriteLine($"── RESULTADO: IsSuccess={result.IsSuccess}, PublishAsync=0 chamadas");
 
         result.IsSuccess.Should().BeTrue();
         await _publisher.DidNotReceive().PublishAsync(
