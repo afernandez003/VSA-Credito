@@ -95,9 +95,9 @@ public sealed partial class KafkaAdapter : IMessagePublisher, IMessageConsumer, 
 
     public void Dispose()
     {
-        _producer.Flush(TimeSpan.FromSeconds(5));
-        _producer.Dispose();
-        _consumer.Close();
-        _consumer.Dispose();
+        try { _producer.Flush(TimeSpan.FromSeconds(5)); } catch (Exception) { }
+        try { _producer.Dispose(); } catch (Exception) { }
+        try { _consumer.Close(); } catch (Exception) { }
+        try { _consumer.Dispose(); } catch (Exception) { }
     }
 }
