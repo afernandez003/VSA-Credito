@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test + Coverage
+        run: |
+          dotnet test --no-build -c Release \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "liquid.md;LogFileName=test-results.md" \
+            --results-directory TestResults \
+            --collect:"XPlat Code Coverage" \
+            --settings tests/Tests/coverlet.runsettings
+
+      - name: Coverage Report
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: 'TestResults/**/coverage.cobertura.xml'
+          targetdir: 'TestResults/coverage'
+          reporttypes: 'Html;MarkdownSummaryGithub'
+
+      - name: Publicar Coverage no Job Summary
+        run: cat TestResults/coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        if: always()
+
+      - name: Comentar Coverage no PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: TestResults/coverage/SummaryGithub.md
+
+      - name: Upload artefatos de teste
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            TestResults/test-results.trx
+            TestResults/test-results.md
+            TestResults/coverage/
+          retention-days: 30
