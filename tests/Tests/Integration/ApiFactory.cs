@@ -12,6 +12,7 @@ namespace Creditos.Tests.Integration;
 
 public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+#pragma warning disable CS0618 // construtores sem parâmetro deprecated em 4.12 — aguardando API estável
     private readonly KafkaContainer _kafka = new KafkaBuilder()
         .WithImage("confluentinc/cp-kafka:7.6.1")
         .Build();
@@ -19,6 +20,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
         .Build();
+#pragma warning restore CS0618
 
     async Task IAsyncLifetime.InitializeAsync() =>
         await Task.WhenAll(_kafka.StartAsync(), _postgres.StartAsync());
@@ -52,17 +54,21 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     /// <summary>
     /// Consome e processa todas as mensagens pendentes no tópico Kafka.
-    /// Para após 500ms sem receber mensagem (fila vazia).
+    /// Aguarda pelo menos <paramref name="minRunMs"/> (tempo de join do grupo Kafka no CI),
+    /// depois para quando ficar ocioso por <paramref name="idleThresholdMs"/>.
     /// </summary>
-    public async Task ProcessarMensagensPendentesAsync(int timeoutMs = 15000)
+    public async Task ProcessarMensagensPendentesAsync(
+        int timeoutMs = 15000,
+        int minRunMs = 6000,
+        int idleThresholdMs = 2000)
     {
         using var scope = Services.CreateScope();
         var consumer = scope.ServiceProvider.GetRequiredService<IMessageConsumer>();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        var startTime = DateTime.UtcNow;
         var idleMs = 0;
-        const int idleThresholdMs = 500;
 
         while (DateTime.UtcNow < deadline)
         {
@@ -74,8 +80,13 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             }
             else
             {
-                idleMs += 100;
-                if (idleMs >= idleThresholdMs) break;
+                var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                if (elapsed >= minRunMs)
+                {
+                    // só conta idle depois do período mínimo (consumer group join)
+                    idleMs += 100;
+                    if (idleMs >= idleThresholdMs) break;
+                }
                 await Task.Delay(100);
             }
         }

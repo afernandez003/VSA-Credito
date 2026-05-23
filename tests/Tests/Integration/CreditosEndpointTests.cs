@@ -89,7 +89,7 @@ public class CreditosEndpointTests : IClassFixture<ApiFactory>
         creditos.Should().NotBeNull();
         creditos!.Select(c => c.NumeroCredito).Should()
             .Contain(["CR-FULLSTACK-01", "CR-FULLSTACK-02"]);
-        _output.WriteLine($"✅ Créditos persistidos: {creditos.Count}");
+        _output.WriteLine($"✅ Créditos persistidos: {creditos!.Count}");
     }
 
     [Fact(DisplayName = "GET /api/creditos/{numeroNfse}: NFS-e sem créditos → 200 OK com lista vazia")]
