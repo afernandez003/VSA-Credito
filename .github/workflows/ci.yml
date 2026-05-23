@@ -26,25 +26,36 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Verificar formatação (dotnet format)
+        run: dotnet format --verify-no-changes
+
+      - name: Verificar pacotes vulneráveis
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee /tmp/vulnerable.txt
+          if grep -q "has the following vulnerable packages" /tmp/vulnerable.txt; then
+            echo "::error::Pacotes NuGet com vulnerabilidades conhecidas encontrados!"
+            exit 1
+          fi
+
       - name: Test + Coverage
         run: |
           dotnet test --no-restore \
             -p:PublishAot=false \
             --logger "trx;LogFileName=test-results.trx" \
             --logger "liquid.md;LogFileName=test-results.md" \
-            --results-directory TestResults \
+            --results-directory tests/TestResults \
             --collect:"XPlat Code Coverage" \
             --settings tests/Tests/coverlet.runsettings
 
       - name: Coverage Report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
-          reports: 'TestResults/**/coverage.cobertura.xml'
-          targetdir: 'TestResults/coverage'
+          reports: 'tests/TestResults/**/coverage.cobertura.xml'
+          targetdir: 'tests/TestResults/coverage'
           reporttypes: 'Html;MarkdownSummaryGithub'
 
       - name: Publicar Coverage no Job Summary
-        run: cat TestResults/coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        run: cat tests/TestResults/coverage/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
         if: always()
 
       - name: Comentar Coverage no PR
@@ -52,7 +63,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           recreate: true
-          path: TestResults/coverage/SummaryGithub.md
+          path: tests/TestResults/coverage/SummaryGithub.md
 
       - name: Upload artefatos de teste
         uses: actions/upload-artifact@v4
@@ -60,7 +71,7 @@ jobs:
         with:
           name: test-results-${{ github.run_number }}
           path: |
-            TestResults/test-results.trx
-            TestResults/test-results.md
-            TestResults/coverage/
+            tests/TestResults/test-results.trx
+            tests/TestResults/test-results.md
+            tests/TestResults/coverage/
           retention-days: 30

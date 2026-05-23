@@ -36,6 +36,15 @@ API REST + Background Service para integração e consulta de créditos constitu
 - [x] Publisher Kafka: cada GET publica evento de auditoria no tópico `consulta-credito-entry`
 - [x] `KafkaAdapter` — implementação concreta via `Confluent.Kafka`
 
+### Quality Gates (adicional)
+- [x] `dotnet format` — formatação verificada no CI
+- [x] `dotnet list package --vulnerable` — CVEs bloqueiam o CI
+- [x] Cobertura mínima de 60% (gate coverlet)
+- [x] CodeQL — análise SAST em cada push/PR e semanal
+- [x] Dependabot — PRs automáticos para NuGet e GitHub Actions
+
+> Detalhes, cobertura e vantagens de cada ferramenta: [docs/quality-gates.md](docs/quality-gates.md)
+
 ---
 
 ## Pré-requisitos

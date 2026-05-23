@@ -14,7 +14,7 @@ public class IntegrarCredito_HandlerTests(ITestOutputHelper output)
     private readonly IOptions<MessagingOptions> _options = ExtOptions.Create(new MessagingOptions
     {
         TopicoIntegracao = "integrar-credito-constituido-entry",
-        TopicoAuditoria  = "consulta-credito-entry"
+        TopicoAuditoria = "consulta-credito-entry"
     });
 
     private Handler CriarHandler() => new(_publisher, _options, NullLogger<Handler>.Instance);
@@ -83,12 +83,12 @@ public class IntegrarCredito_HandlerTests(ITestOutputHelper output)
     }
 
     [Theory(DisplayName = "Handle: simplesNacional aceita variações de case e acento → converte para bool na mensagem")]
-    [InlineData("Sim",  true)]
-    [InlineData("sim",  true)]
-    [InlineData("SIM",  true)]
-    [InlineData("Não",  false)]
-    [InlineData("não",  false)]
-    [InlineData("NAO",  false)]
+    [InlineData("Sim", true)]
+    [InlineData("sim", true)]
+    [InlineData("SIM", true)]
+    [InlineData("Não", false)]
+    [InlineData("não", false)]
+    [InlineData("NAO", false)]
     public async Task Handle_ParseSimplesNacional_DeveConverterCorretamente(string input, bool esperado)
     {
         var request = CreditoFakers.GerarRequest(seed: 4) with { SimplesNacional = input };

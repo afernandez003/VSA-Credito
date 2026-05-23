@@ -18,16 +18,16 @@ public static class CreditoFakers
         new Faker<CreditoRequest>("pt_BR")
             .UseSeed(seed)
             .CustomInstantiator(f => new CreditoRequest(
-                NumeroCredito:    f.Random.Replace("CR-######"),
-                NumeroNfse:       f.Random.Replace("NF-#######"),
+                NumeroCredito: f.Random.Replace("CR-######"),
+                NumeroNfse: f.Random.Replace("NF-#######"),
                 DataConstituicao: DateOnly.FromDateTime(f.Date.Past(3)),
-                ValorIssqn:       Math.Round(f.Finance.Amount(10, 50_000), 2),
-                TipoCredito:      f.PickRandom(TiposCredito),
-                SimplesNacional:  f.PickRandom(SimplesNacionalOpcoes),
-                Aliquota:         Math.Round(f.Finance.Amount(2, 5), 2),
-                ValorFaturado:    Math.Round(f.Finance.Amount(1_000, 1_000_000), 2),
-                ValorDeducao:     Math.Round(f.Finance.Amount(0, 500), 2),
-                BaseCalculo:      Math.Round(f.Finance.Amount(1_000, 1_000_000), 2)));
+                ValorIssqn: Math.Round(f.Finance.Amount(10, 50_000), 2),
+                TipoCredito: f.PickRandom(TiposCredito),
+                SimplesNacional: f.PickRandom(SimplesNacionalOpcoes),
+                Aliquota: Math.Round(f.Finance.Amount(2, 5), 2),
+                ValorFaturado: Math.Round(f.Finance.Amount(1_000, 1_000_000), 2),
+                ValorDeducao: Math.Round(f.Finance.Amount(0, 500), 2),
+                BaseCalculo: Math.Round(f.Finance.Amount(1_000, 1_000_000), 2)));
 
     public static CreditoRequest GerarRequest(int seed = 42) =>
         RequestFaker(seed).Generate();
@@ -41,16 +41,16 @@ public static class CreditoFakers
         new Faker<CreditoMessage>("pt_BR")
             .UseSeed(seed)
             .CustomInstantiator(f => new CreditoMessage(
-                NumeroCredito:    f.Random.Replace("CR-######"),
-                NumeroNfse:       f.Random.Replace("NF-#######"),
+                NumeroCredito: f.Random.Replace("CR-######"),
+                NumeroNfse: f.Random.Replace("NF-#######"),
                 DataConstituicao: DateOnly.FromDateTime(f.Date.Past(3)),
-                ValorIssqn:       Math.Round(f.Finance.Amount(10, 50_000), 2),
-                TipoCredito:      f.PickRandom(TiposCredito),
-                SimplesNacional:  f.Random.Bool(),
-                Aliquota:         Math.Round(f.Finance.Amount(2, 5), 2),
-                ValorFaturado:    Math.Round(f.Finance.Amount(1_000, 1_000_000), 2),
-                ValorDeducao:     Math.Round(f.Finance.Amount(0, 500), 2),
-                BaseCalculo:      Math.Round(f.Finance.Amount(1_000, 1_000_000), 2)));
+                ValorIssqn: Math.Round(f.Finance.Amount(10, 50_000), 2),
+                TipoCredito: f.PickRandom(TiposCredito),
+                SimplesNacional: f.Random.Bool(),
+                Aliquota: Math.Round(f.Finance.Amount(2, 5), 2),
+                ValorFaturado: Math.Round(f.Finance.Amount(1_000, 1_000_000), 2),
+                ValorDeducao: Math.Round(f.Finance.Amount(0, 500), 2),
+                BaseCalculo: Math.Round(f.Finance.Amount(1_000, 1_000_000), 2)));
 
     public static CreditoMessage GerarMessage(int seed = 42) =>
         MessageFaker(seed).Generate();
@@ -64,8 +64,8 @@ public static class CreditoFakers
     {
         var f = new Faker("pt_BR") { Random = new Randomizer(seed) };
         return Domain.Credito.Create(
-            numeroCredito    ?? f.Random.Replace("CR-######"),
-            numeroNfse       ?? f.Random.Replace("NF-#######"),
+            numeroCredito ?? f.Random.Replace("CR-######"),
+            numeroNfse ?? f.Random.Replace("NF-#######"),
             DateOnly.FromDateTime(f.Date.Past(3)),
             Math.Round(f.Finance.Amount(10, 50_000), 2),
             f.PickRandom(TiposCredito),
