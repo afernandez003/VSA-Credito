@@ -1,8 +1,6 @@
 # Creditos API — Desafio Técnico
 
-[![CI](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml)
-
-[![CodeQL](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml)
+[![CI](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/ci.yml) - [![CodeQL](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml/badge.svg)](https://github.com/afernandez003/VSA-Credito/actions/workflows/codeql.yml)
 
 API REST + Background Service para integração e consulta de créditos constituídos (ISSQN/NFS-e).
 
@@ -70,6 +68,7 @@ docker compose up --build
 | Creditos API | http://localhost:8080 | REST + Scalar UI |
 | Scalar (docs) | http://localhost:8080/scalar | Documentação interativa (apenas em desenvolvimento) |
 | PostgreSQL | localhost:5432 | Banco de dados |
+| Kafka | localhost:9092 | Message broker (KRaft, sem Zookeeper) |
 | Worker | — | Sem porta exposta; consome mensagens do Kafka |
 
 ---
