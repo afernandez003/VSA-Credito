@@ -23,12 +23,10 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      - name: Build
-        run: dotnet build --no-restore -c Release
-
       - name: Test + Coverage
         run: |
-          dotnet test --no-build -c Release \
+          dotnet test --no-restore \
+            -p:PublishAot=false \
             --logger "trx;LogFileName=test-results.trx" \
             --logger "liquid.md;LogFileName=test-results.md" \
             --results-directory TestResults \
