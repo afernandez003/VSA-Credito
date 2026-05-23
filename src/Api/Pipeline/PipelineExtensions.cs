@@ -27,7 +27,7 @@ public static class PipelineExtensions
             app.MapGet("api/document.json", (IWebHostEnvironment env) =>
             {
                 var path = Path.Combine(env.ContentRootPath, "openapi", "openapi.json");
-                return Results.File(path, "application/json");
+                return TypedResults.PhysicalFile(path, "application/json");
             });
         }
 

@@ -2,6 +2,11 @@
 
 API REST + Background Service para integração e consulta de créditos constituídos (ISSQN/NFS-e).
 
+> **Notas de implementação**
+> - O spec usa `.NET Core 6.0^` — .NET 6 atingiu End of Life em novembro de 2024 e não recebe mais patches de segurança. Foi usado .NET 10, a versão atual com suporte até 2027, conforme [recomendação oficial da Microsoft](https://dotnet.microsoft.com/pt-br/download/dotnet/6.0).
+> - `simplesNacional` é recebido como `"Sim"`/`"Não"` na API — exatamente como especificado — e validado via FluentValidation. A conversão para `bool` ocorre no handler antes de persistir; boolean é o tipo semântico correto para dados binários.
+> - Minimal API substitui MVC clássico: é a evolução oficial introduzida no .NET 6, preserva a mesma separação de responsabilidades (endpoint ≡ controller + action) com menos boilerplate.
+
 ---
 
 ## Checklist de Requisitos
@@ -284,4 +289,4 @@ Sem exceções no fluxo de negócio. `Result<T>` com `IsSuccess / IsFailure / Er
 | **Repository** | `ICreditoRepository` (App) + `EfCoreCreditoRepository` (Infra) |
 | **Factory** | `static Credito Create(...)` no aggregate root (Domain) |
 | **Singleton** | `IProducer<string,string>` (Confluent.Kafka) — thread-safe, caro de instanciar |
-| **MVC** | Substituído por **Minimal API + VSA** — padrão .NET 9/10; mesma separação de responsabilidades com menos boilerplate |
+| **MVC** | Substituído por **Minimal API + VSA** — padrão .NET 9/10; mesma separação de responsabilidades com menos boilerplate. Swashbuckle (Swagger) usa reflection em runtime e é incompatível com Native AOT — **Scalar + `Microsoft.AspNetCore.OpenApi`** gera o documento via source generator em tempo de compilação, mantendo compatibilidade AOT total. |

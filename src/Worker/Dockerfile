@@ -11,9 +11,11 @@ RUN dotnet restore src/Worker/Worker.csproj
 
 COPY . .
 RUN dotnet publish src/Worker/Worker.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -r linux-x64 --self-contained \
+    -o /app/publish --no-restore \
+    -p:PublishAot=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS runtime
 WORKDIR /app
 
 RUN useradd -r -s /bin/false creditos
@@ -23,4 +25,4 @@ COPY --from=build /app/publish .
 USER creditos
 ENV DOTNET_ENVIRONMENT=Production
 
-ENTRYPOINT ["dotnet", "Worker.dll"]
+ENTRYPOINT ["./Worker"]

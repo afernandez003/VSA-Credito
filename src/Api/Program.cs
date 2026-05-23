@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Creditos;
 using Creditos.Api.Pipeline;
 using Creditos.Behaviors;
@@ -67,9 +68,15 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// MigrateAsync requer provider relacional e dynamic code (não funciona com InMemory nem native AOT).
+if (RuntimeFeature.IsDynamicCodeSupported)
 {
-    await scope.ServiceProvider.GetRequiredService<CreditosDbContext>().Database.MigrateAsync();
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<CreditosDbContext>();
+    if (db.Database.IsRelational())
+    {
+        await db.Database.MigrateAsync();
+    }
 }
 
 app.UseStandardPipeline();
