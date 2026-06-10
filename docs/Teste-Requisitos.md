@@ -1,8 +1,4 @@
-solutioit
-https://solutioit.com.br/
-
 DESAFIO TÉCNICO – DESENVOLVIMENTO DE API DE CONSULTA DE CRÉDITOS
-
 
 OBJETIVO
 O candidato deverá desenvolver um Backgroung service contendo APIs RESTful utilizando .NET core (C#) para a consulta de créditos constituídos. O servico deverá:
